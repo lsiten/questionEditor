@@ -10,7 +10,7 @@ var questionFactiory= function (cfg, type) {
   
   this.$el = document.createElement('div');
   this.$el.id = this.id;
-  this.$el.tabIndex = 1;
+  this.$el.className = 'lsiten-question-all-box';
 
   this.$header = document.createElement('div');
   this.$header.id = this.id + '_head';
@@ -64,8 +64,15 @@ questionFactiory.prototype = {
   },
   initEvent: function() {
     var _this = this;
-    domUtils.on(this.$el, 'focus', function(evt) {
-      _this.editor.currentQuestion = _this;
+    domUtils.on(this.$el, 'click', function(evt) {
+      var questionDom = domUtils.findParent(evt.target, function(node) {
+        return node.className === 'lsiten-question-all-box';
+      }, true);
+      if (questionDom) {
+        _this.editor.currentQuestion = _this;
+      } else {
+        _this.editor.currentQuestion = null;
+      }
     })
     domUtils.on(this.$el, 'keyup', function(evt) {
       var keyCode = evt.keyCode || evt.which;
@@ -554,30 +561,42 @@ questionFactiory.prototype = {
 UE.plugin.register("question", function() {
   var me = this;
 
+  var moveUpFun = function(cmd) {
+    var question = me.currentQuestion;
+    var AllQuestions = me.questions;
+    var currentSort = question.data.inSort;
+    if (currentSort === 1) {
+      return '';
+    }
+    for (var i in AllQuestions) {
+      console.log(AllQuestions[i]);
+    }
+  }
+
+  var moveDownFun = function(cmd) {
+    var question = me.currentQuestion;
+    var AllQuestions = me.questions;
+    console.log(question, me, AllQuestions);
+  }
+
+  var deleteQuestionFun = function(cmd) {
+    var question = me.currentQuestion;
+    var AllQuestions = me.questions;
+    console.log(question, me, AllQuestions);
+  }
 
   function initEvent() {
     delete me.shortcutkeys.Redo;
     delete me.shortcutkeys.Undo;
     // 上移
-    me.addListener('moveUp', function(cmd) {
-      var question = me.currentQuestion;
-      var AllQuestions = me.questions;
-      console.log(me, AllQuestions);
-    })
-
+    me.removeListener('moveUp', moveUpFun);
+    me.addListener('moveUp', moveUpFun);
     // 下移
-    me.addListener('moveDown', function(cmd) {
-      var question = me.currentQuestion;
-      var AllQuestions = me.questions;
-      console.log(me, AllQuestions);
-    })
-
+    me.removeListener('moveDown', moveDownFun);
+    me.addListener('moveDown', moveDownFun);
     // 删除
-    me.addListener('deleteQuestion', function(cmd) {
-      var question = me.currentQuestion;
-      var AllQuestions = me.questions;
-      console.log(me, AllQuestions);
-    })
+    me.removeListener('deleteQuestion', deleteQuestionFun);
+    me.addListener('deleteQuestion', deleteQuestionFun);
   }
 
   // 禁用一些功能

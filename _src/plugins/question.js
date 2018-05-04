@@ -558,6 +558,26 @@ UE.plugin.register("question", function() {
   function initEvent() {
     delete me.shortcutkeys.Redo;
     delete me.shortcutkeys.Undo;
+    // 上移
+    me.addListener('moveUp', function(cmd) {
+      var question = me.currentQuestion;
+      var AllQuestions = me.questions;
+      console.log(me, AllQuestions);
+    })
+
+    // 下移
+    me.addListener('moveDown', function(cmd) {
+      var question = me.currentQuestion;
+      var AllQuestions = me.questions;
+      console.log(me, AllQuestions);
+    })
+
+    // 删除
+    me.addListener('deleteQuestion', function(cmd) {
+      var question = me.currentQuestion;
+      var AllQuestions = me.questions;
+      console.log(me, AllQuestions);
+    })
   }
 
   // 禁用一些功能
@@ -605,6 +625,7 @@ UE.plugin.register("question", function() {
           initEvent();
           // disableTool();
           type === 4 && addPlaceholderEvent();
+          
         }
       }
     }

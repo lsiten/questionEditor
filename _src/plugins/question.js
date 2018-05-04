@@ -47,6 +47,21 @@ questionFactiory.prototype = {
     'S', 'T', 'U', 'V', 'W', 'X',
     'Y', 'Z'
   ],
+  _findPrePlaceholder: function (node) {
+    if (!node) {
+      return node;
+    }
+    if (node.nodeType === 1 && node.className === 'lsiten-placeholder') {
+      return node;
+    }
+    if (node.previousSibling) {
+      if (node.previousSibling.nodeType === 1 && node.previousSibling.className === 'lsiten-placeholder') {
+        return node.previousSibling;
+      }
+      return this._findPrePlaceholder(node.previousSibling);
+    }
+    return node.previousSibling;
+  },
   initEvent: function() {
     var _this = this;
     domUtils.on(this.$el, 'focus', function(evt) {
@@ -98,7 +113,8 @@ questionFactiory.prototype = {
           !evt.altKey
         ) {
           if(_this.options.length > 1) {
-            var sort = evt.target.getAttribute('data-sort');
+            var targetDom = evt.target;            
+            var sort = targetDom.getAttribute('data-sort');
             var options = _this.data.OptList;
             var deletePnum = _this.keyMaps[sort-1];
             _this.answerArr = _this.answerArr.filter(function(item, key) {
@@ -129,9 +145,55 @@ questionFactiory.prototype = {
               _this.data.inAnswer = '';
               _this.$answerContent.appendChild(_this.emptyBox);
             }
-  
             evt.stopImmediatePropagation();
             domUtils.preventDefault(evt);
+          }
+        }
+      })
+    } 
+    if (this.type === 4) {
+      var editor = this.editor;
+      domUtils.on(this.$el, 'keydown', function(evt) {
+        var keyCode = evt.keyCode || evt.which;
+        
+        // 回退键
+        if (
+          keyCode === 8 &&
+          !evt.ctrlKey &&
+          !evt.metaKey &&
+          !evt.shiftKey &&
+          !evt.altKey
+        ) {
+          var range = editor.selection.getRange(),
+              start = range.startContainer;
+          var editorBoxDom = domUtils.findParent(start, function(node) {
+            return node.className === 'lsiten-editor-box-4';
+          }, true);
+          // 如果不在填空题的编辑框内，返回
+          if (!editorBoxDom) {
+            return '';
+          }
+          var parentDom = domUtils.findParent(start, function(node) {
+            return node.parentNode.className === 'lsiten-editor-box-4';
+          }, true);
+
+          var prePlaceholder =  _this._findPrePlaceholder(parentDom);
+          if (!parentDom) {
+            if (_this.currentPlaceholder) {
+              var pindex = _this.currentPlaceholder.getAttribute('data-placeholerIndex');
+              var filterArr = [];
+              for (var i in _this.placeholders) {
+                if (_this.placeholders[i].index !== parseInt(pindex)) {
+                  _this.placeholders[i].index > parseInt(pindex) && (_this.placeholders[i].index--);
+                  filterArr.push(_this.placeholders[i]);
+                }
+              }
+              _this.placeholderIndex--;
+              _this.placeholders = filterArr;
+              _this._refreshPlaceholderAnswer();
+            }
+          } else {
+            _this.currentPlaceholder = prePlaceholder;
           }
         }
       })
@@ -155,11 +217,22 @@ questionFactiory.prototype = {
     editorBox.style.lineHeight = '20px';
     editorBox.style.padding= '10px';
     editorBox.style.outline = 'none';
-    editorBox.style.borderBottom = '1px solid #efefef';
+    // 如果是填空题，没有下划线
+    parseInt(this.type) !==4 && (editorBox.style.borderBottom = '1px solid #efefef');
     editorBox.style.flex = '1';
+    editorBox.className = 'lsiten-editor-box-' + this.type;
     var _this = this;
-    domUtils.on(editorBox, 'input', function() {
+    domUtils.on(editorBox, 'input', function(evt, test) {
       var value = this.innerHTML;
+      var placeholders = this.getElementsByClassName('lsiten-placeholder');
+      if (placeholders.length > 0) {
+        var tempDom = this.cloneNode(true);
+        var tempPlaceholders = Array.prototype.slice.call(tempDom.getElementsByClassName('lsiten-placeholder'), 0);
+        for (var i =0; i < tempPlaceholders.length; i++) {
+          tempPlaceholders[i].outerHTML = '[_Fill.Replace_]';
+        }
+        value = tempDom.innerHTML;
+      }
       _this.data.inQuTitle = value;
     })
     var pNumDom = document.createElement('div');
@@ -214,13 +287,13 @@ questionFactiory.prototype = {
       }
       break;
       case 4:
-      answerBox.style.marginTop = '0';
-      answerBox.style.borderTop = 'none';
-      this.emptyBox.innerHTML = '<尚未加空> 参考答案用于系统自动阅卷，不会显示在答卷上';
-      var answer = this.data.inAnswer;
-      if (answer.length < 1) {
-        answerContent.appendChild(this.emptyBox);
-      }
+      // answerBox.style.marginTop = '0';
+      // answerBox.style.borderTop = 'none';
+      // this.emptyBox.innerHTML = '<尚未加空> 参考答案用于系统自动阅卷，不会显示在答卷上';
+      // var answer = this.data.inAnswer;
+      // if (answer.length < 1) {
+      //   answerContent.appendChild(this.emptyBox);
+      // }
       break;
       case 5:
       answerBox.style.marginTop = '0';
@@ -237,7 +310,7 @@ questionFactiory.prototype = {
       break;
     }
     this.$answerContent = answerContent;
-    this.$body.appendChild(answerBox);
+    parseInt(this.type) !== 4 && this.$body.appendChild(answerBox);
   },
   // 生成判断题选项
   generateJudgeOption: function () {
@@ -400,18 +473,79 @@ questionFactiory.prototype = {
       // 不是填空题不能加空
       return false;
     }
-
+    var _this = this;
+    var editor = this.editor;
+    var range = editor.selection.getRange(),
+        start = range.startContainer;
+    var editorBoxDom = domUtils.findParent(start, function(node) {
+      return node.className === 'lsiten-editor-box-4';
+    }, true);
+    // 如果不在填空题的编辑框内，返回
+    if (!editorBoxDom) {
+      return '';
+    }
+    var parentDom = domUtils.findParent(start, function(node) {
+      return node.parentNode.className === 'lsiten-editor-box-4';
+    }, true);
+    var prePlaceholder =  this._findPrePlaceholder(parentDom);
+    !this.placeholderIndex && (this.placeholderIndex = 0);
+    var placeholderIndex = ++this.placeholderIndex;
+    if (prePlaceholder) {
+      var preIndex = parseInt(prePlaceholder.getAttribute('data-placeholerIndex'));
+      placeholderIndex = preIndex + 1;
+    } else {
+      placeholderIndex = 1;
+    }
     var headerDom = this.$headerEditorBox;
     var editor = this.editor;
-    var placeholder = document.createElement('div');
-    placeholder.style.display = 'inline-block';
-    placeholder.style.minWidth = '20px';
+    var placeholder = document.createElement('input');
+    placeholder.style.border = 'none';
+    placeholder.style.outline = 'none';
     placeholder.style.lineHeight = '20px;'
     placeholder.style.borderBottom = '1px #bfbfbf solid';
-    placeholder.style.margin = '0 5px';
-    this.placeholders.push(placeholder);
+    placeholder.style.textAlign = 'center';
+    placeholder.placeholder = '输入参考答案';
+    placeholder.className = 'lsiten-placeholder';
+    placeholder.style.webkitAppearance = 'none';
+    placeholder.setAttribute('data-placeholerIndex', placeholderIndex);
     
+    domUtils.on(placeholder, 'change', function () {
+      _this._refreshPlaceholderAnswer();
+    })
+    var placeholderItem = {
+      index: placeholderIndex,
+      dom: placeholder
+    };
+    if (this.placeholders.length > 0) {
+      var addPlaceholder = [];
+      var isAddIterm = false;
+      for(var i in this.placeholders) {
+         if (this.placeholders[i].index === placeholderIndex) {
+          this.placeholders[i].index++;
+          addPlaceholder.push(placeholderItem);
+         } else {
+          this.placeholders[i].index > placeholderIndex && this.placeholders[i].index++
+        }
+        addPlaceholder.push(this.placeholders[i]);
+        this.placeholders[i].dom.setAttribute('data-placeholerIndex', this.placeholders[i].index);
+      }
+      !isAddIterm && addPlaceholder.push(placeholderItem);
+      this.placeholders = addPlaceholder;
+
+    } else {
+      this.placeholders.push(placeholderItem);
+    }
+    this._refreshPlaceholderAnswer();
     editor.execCommand('insertdom', placeholder);
+  },
+  _refreshPlaceholderAnswer: function () {
+    var placeholders = this.placeholders;
+    var data = this.data;
+    var answerArr = [];
+    for (var i in placeholders) {
+      answerArr.push('[_Fill.Replace_]' + placeholders[i].dom.value);
+    }
+    data.inAnswer = answerArr.join('');
   }
 }
 

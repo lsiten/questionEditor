@@ -116,7 +116,6 @@ UE.plugins["paste"] = function() {
           domUtils.remove(ni);
         }
       }
-
       if (browser.webkit) {
         var brs = div.querySelectorAll("div br");
         for (var i = 0, bi; (bi = brs[i++]); ) {
@@ -182,6 +181,9 @@ UE.plugins["paste"] = function() {
         }
         utils.each(me.body.querySelectorAll("div"), function(node) {
           if (domUtils.isEmptyBlock(node)) {
+            if (node.contentEditable) {
+              return;
+            }
             domUtils.remove(node, true);
           }
         });
@@ -214,7 +216,7 @@ UE.plugins["paste"] = function() {
             ? getPureHtml(htmlContent)
             : htmlContent,
           true
-        );
+        );   
       }
       me.fireEvent("afterpaste", html);
     }

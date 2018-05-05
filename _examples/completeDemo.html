@@ -118,7 +118,8 @@
     }
 
     function getQuesitions() {
-        console.log(questionsData);
+        var data = UE.getEditor('editor').fireEvent('getAllData');
+        console.log(data);
     }
 
     function setDom() {

@@ -216,6 +216,7 @@ questionFactiory.prototype = {
     this.$el.style.lineHeight = '20px';
     this.$el.style.border = '1px solid #efefef';
     this.$el.style.borderRadius = '3px';
+    this.$el.style.marginTop = '5px';
   },
   // 根据不同类型题目生成不同的头部
   generateHeader: function() {
@@ -249,6 +250,7 @@ questionFactiory.prototype = {
     pNumDom.innerHTML = this.data.inSort + '、';
     this.$header.style.display = 'flex';
     this.$headerEditorBox = editorBox;
+    this.$headerPnumDom = pNumDom;
     this.$header.appendChild(pNumDom);
     this.$header.appendChild(editorBox);
   },
@@ -568,22 +570,100 @@ UE.plugin.register("question", function() {
     if (currentSort === 1) {
       return '';
     }
+    var preSort = currentSort - 1;
+    if (preSort <=0 ) {
+      return '';
+    } 
+    var preQuestion;
+    var tempQuestions = [];
     for (var i in AllQuestions) {
-      console.log(AllQuestions[i]);
+      if (preSort === AllQuestions[i].data.inSort) {
+        preQuestion = AllQuestions[i];
+        preQuestion.data.inSort++;
+        preQuestion.$headerPnumDom.innerHTML = preQuestion.data.inSort;
+      } else if (currentSort === AllQuestions[i].data.inSort) {      
+        AllQuestions[i].data.inSort--;
+        AllQuestions[i].$headerPnumDom.innerHTML = AllQuestions[i].data.inSort;
+        domUtils.remove(AllQuestions[i].$el);
+        preQuestion.$el.parentNode.insertBefore(AllQuestions[i].$el, preQuestion.$el);
+        tempQuestions.push(AllQuestions[i]);
+        tempQuestions.push(preQuestion);
+      } else {
+        tempQuestions.push(AllQuestions[i]);
+      }
     }
+    me.questions = tempQuestions;
   }
 
   var moveDownFun = function(cmd) {
     var question = me.currentQuestion;
     var AllQuestions = me.questions;
-    console.log(question, me, AllQuestions);
+    var qLength = me.questions.length;
+    var currentSort = question.data.inSort;
+    if (currentSort === qLength) {
+      return '';
+    }
+    var nextSort = currentSort + 1;
+
+    if (nextSort > qLength) {
+      return '';
+    }
+
+    var nextQuestion;
+    var tempQuestions = [];
+    for (var i in AllQuestions) {
+      if (nextSort === AllQuestions[i].data.inSort) {
+        nextQuestion = AllQuestions[i];
+        nextQuestion.data.inSort--;
+        nextQuestion.$headerPnumDom.innerHTML = nextQuestion.data.inSort;
+        domUtils.remove(nextQuestion.$el);
+        question.$el.parentNode.insertBefore(nextQuestion.$el, question.$el);
+        tempQuestions.push(nextQuestion);
+        tempQuestions.push(question);
+      } else if (currentSort === AllQuestions[i].data.inSort) {      
+        AllQuestions[i].data.inSort++;
+        AllQuestions[i].$headerPnumDom.innerHTML = AllQuestions[i].data.inSort;
+      } else {
+        tempQuestions.push(AllQuestions[i]);
+      }
+    }
+    me.questions = tempQuestions;
   }
 
   var deleteQuestionFun = function(cmd) {
     var question = me.currentQuestion;
     var AllQuestions = me.questions;
-    console.log(question, me, AllQuestions);
+
+    var currentSort = question.data.inSort;
+
+    var tempQuestions = [];
+
+    for (var i in AllQuestions) {
+      if (currentSort === AllQuestions[i].data.inSort) {
+        domUtils.remove(AllQuestions[i].$el);
+      } else if (AllQuestions[i].data.inSort > currentSort) {
+        AllQuestions[i].data.inSort--;
+        AllQuestions[i].$headerPnumDom.innerHTML = AllQuestions[i].data.inSort;
+        tempQuestions.push(AllQuestions[i]);
+      } else {
+        tempQuestions.push(AllQuestions[i]);
+      }
+    }
+
+    me.questions = tempQuestions;
   }
+
+  var getAllDataFun = function(cmd) {
+    var AllQuestions = me.questions;
+    var dataQuestions = [];
+
+    for (var i in AllQuestions) {
+      dataQuestions.push(AllQuestions[i].data);
+    }
+    me.questionData = dataQuestions;
+    return dataQuestions;
+  }
+  
 
   function initEvent() {
     delete me.shortcutkeys.Redo;
@@ -597,6 +677,10 @@ UE.plugin.register("question", function() {
     // 删除
     me.removeListener('deleteQuestion', deleteQuestionFun);
     me.addListener('deleteQuestion', deleteQuestionFun);
+
+    // 删除
+    me.removeListener('getAllData', getAllDataFun);
+    me.addListener('getAllData', getAllDataFun);
   }
 
   // 禁用一些功能
@@ -642,7 +726,6 @@ UE.plugin.register("question", function() {
           me.questions.push(question);
           me.execCommand('insertdom', question.$el);
           initEvent();
-          // disableTool();
           type === 4 && addPlaceholderEvent();
           
         }
